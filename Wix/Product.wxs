@@ -2,7 +2,7 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
     
-    <?define UpgradeCode = "YOUR-UPGRADE-GUID-HERE"?>
+    <?define UpgradeCode = "C1B3DD7F-94BA-488E-BB07-8E2907163826"?>
     
     <Product Id="*" 
              Name="Lactaled Inventory Service" 
