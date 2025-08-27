@@ -1,0 +1,44 @@
+name: Build Lactaled Inventory MSI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # Permite ejecución manual
+
+jobs:
+  build-msi:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v3
+
+    - name: Configurar entorno Windows
+      run: |
+        # Crear estructura de directorios
+        New-Item -ItemType Directory -Path "Output" -Force
+        Copy-Item -Path "Scripts/*" -Destination "Output/" -Recurse
+
+    - name: Descargar WiX Toolset
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip" -OutFile "wix.zip"
+        Expand-Archive -Path "wix.zip" -DestinationPath "wix"
+
+    - name: Compilar MSI
+      run: |
+        .\wix\candle.exe -nologo -dVersion=${{ github.run_number }} Wix/Product.wxs -out Product.wixobj
+        .\wix\light.exe -nologo -ext WixUIExtension -out Output/LactaledInventory.msi Product.wixobj
+
+    - name: Subir artefactos
+      uses: actions/upload-artifact@v3
+      with:
+        name: LactaledInventoryInstaller
+        path: Output/
+
+    - name: Crear release (opcional)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: Output/LactaledInventory.msi
