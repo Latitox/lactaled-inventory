@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-    <?define UpgradeCode = "2A471E0D-7BDC-48C0-AC0B-B67BEAEE47FA"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+    
+    <?define UpgradeCode = "YOUR-UPGRADE-GUID-HERE"?>
     
     <Product Id="*" 
              Name="Lactaled Inventory Service" 
@@ -17,73 +19,21 @@
         <MajorUpgrade DowngradeErrorMessage="Una versión más nueva ya está instalada." />
         <MediaTemplate EmbedCab="yes" />
         
-        <!-- Icono del instalador -->
-        <Icon Id="icon.ico" SourceFile="Resources/icon.ico"/>
-        <Property Id="ARPPRODUCTICON" Value="icon.ico" />
-        
-        <!-- Interfaz de usuario -->
-        <UIRef Id="WixUI_Minimal" />
-        <WixVariable Id="WixUILicenseRtf" Value="Resources/license.rtf" />
-        <WixVariable Id="WixUIBannerBmp" Value="Resources/banner.bmp" />
-        
         <Feature Id="MainFeature" Title="Servicio Inventario" Level="1">
             <ComponentGroupRef Id="MainComponents" />
-            <ComponentGroupRef Id="ShortcutComponents" />
         </Feature>
         
-        <!-- Directorios de instalación -->
         <Directory Id="TARGETDIR" Name="SourceDir">
-            <Directory Id="ProgramMenuFolder">
-                <Directory Id="ApplicationProgramsFolder" Name="Lactaled"/>
-            </Directory>
             <Directory Id="ProgramFilesFolder">
                 <Directory Id="INSTALLFOLDER" Name="Lactaled\InventoryService"/>
             </Directory>
         </Directory>
         
-        <!-- Componentes principales -->
         <ComponentGroup Id="MainComponents" Directory="INSTALLFOLDER">
-            <Component Id="MainExecutable" Guid="745363C3-9AFB-4F3E-899E-CC116074E1B6">
+            <Component Id="MainComponent" Guid="YOUR-COMPONENT-GUID-HERE">
                 <File Id="GetInventarioPS1" 
                       Source="Scripts/Get-Inventario.ps1" 
                       KeyPath="yes" />
-                
-                <!-- Crear tarea programada -->
-                <util:TaskScheduler xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
-                    <util:TaskSchedulerTask Id="InventoryTask" 
-                                           Name="LactaledInventory" 
-                                           Description="Ejecuta inventario cada 5 minutos"
-                                           User="SYSTEM"
-                                           LogonType="ServiceAccount">
-                        <util:TaskExecute Command='[SystemFolder]powershell.exe'
-                                         Arguments='-ExecutionPolicy Bypass -File "[INSTALLFOLDER]Get-Inventario.ps1"'
-                                         WorkingDirectory="INSTALLFOLDER"/>
-                        <util:TaskSchedule type="Daily">
-                            <util:TaskStart>
-                                <util:TaskStartDate>2023-01-01</util:TaskStartDate>
-                                <util:TaskStartTime>00:00:00</util:TaskStartTime>
-                                <util:TaskScheduleRepeat every="5"/>
-                            </util:TaskStart>
-                        </util:TaskSchedule>
-                    </util:TaskSchedulerTask>
-                </util:TaskScheduler>
-            </Component>
-        </ComponentGroup>
-        
-        <!-- Accesos directos -->
-        <ComponentGroup Id="ShortcutComponents" Directory="ApplicationProgramsFolder">
-            <Component Id="ShortcutComponent" Guid="C2374F3D-F026-4D56-8E57-3B78CCFD5E3D">
-                <Shortcut Id="ApplicationShortcut"
-                          Name="Lactaled Inventory"
-                          Description="Servicio de inventario Lactaled"
-                          Target="[INSTALLFOLDER]Get-Inventario.ps1"
-                          WorkingDirectory="INSTALLFOLDER"/>
-                <RegistryValue Root="HKCU" 
-                               Key="Software\Lactaled\Inventory" 
-                               Name="Installed" 
-                               Type="integer" 
-                               Value="1" 
-                               KeyPath="yes"/>
             </Component>
         </ComponentGroup>
     </Product>

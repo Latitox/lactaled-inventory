@@ -3,9 +3,7 @@ name: Build Lactaled Inventory MSI
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  workflow_dispatch: # Permite ejecución manual
+  workflow_dispatch:
 
 jobs:
   build-msi:
@@ -15,30 +13,46 @@ jobs:
     - name: Checkout código
       uses: actions/checkout@v4
 
-    - name: Configurar entorno Windows
+    - name: Listar estructura de archivos
       run: |
-        # Crear estructura de directorios
-        New-Item -ItemType Directory -Path "Output" -Force
-        Copy-Item -Path "Scripts/*" -Destination "Output/" -Recurse
+        Get-ChildItem -Recurse -Name
+        Write-Host "=== CONTENIDO DE SCRIPTS ==="
+        Get-ChildItem -Path "Scripts" -Recurse
+        Write-Host "=== CONTENIDO DE WIX ==="
+        Get-ChildItem -Path "Wix" -Recurse
 
     - name: Descargar WiX Toolset
       run: |
         Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip" -OutFile "wix.zip"
         Expand-Archive -Path "wix.zip" -DestinationPath "wix"
 
-    - name: Compilar MSI
+    - name: Verificar archivo WXS
       run: |
-        .\wix\candle.exe -nologo -dVersion=${{ github.run_number }} Wix/Product.wxs -out Product.wixobj
-        .\wix\light.exe -nologo -ext WixUIExtension -out Output/LactaledInventory.msi Product.wixobj
+        if (Test-Path "Wix/Product.wxs") {
+            Get-Content "Wix/Product.wxs" -First 10
+            Write-Host "✅ Archivo WXS encontrado"
+        } else {
+            Write-Host "❌ ERROR: Archivo WXS no encontrado"
+            exit 1
+        }
 
-    - name: Subir artefactos (versión actualizada)
+    - name: Compilar MSI (con debug)
+      run: |
+        Write-Host "=== COMPILANDO MSI ==="
+        .\wix\candle.exe -nologo -v -dVersion=${{ github.run_number }} Wix/Product.wxs -out Product.wixobj 2>&1 | Write-Host
+        Write-Host "=== ENLAZANDO MSI ==="
+        .\wix\light.exe -nologo -v -ext WixUIExtension -out LactaledInventory.msi Product.wixobj 2>&1 | Write-Host
+        
+        if (Test-Path "LactaledInventory.msi") {
+            Write-Host "✅ MSI creado exitosamente!"
+            Get-Item "LactaledInventory.msi"
+        } else {
+            Write-Host "❌ ERROR: No se pudo crear el MSI"
+            exit 1
+        }
+
+    - name: Subir artefactos
       uses: actions/upload-artifact@v4
       with:
         name: LactaledInventoryInstaller
-        path: Output/
-
-    - name: Crear release (opcional)
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: Output/LactaledInventory.msi
+        path: LactaledInventory.msi
