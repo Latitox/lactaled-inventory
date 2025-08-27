@@ -13,7 +13,7 @@ jobs:
 
     steps:
     - name: Checkout código
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Configurar entorno Windows
       run: |
@@ -31,8 +31,8 @@ jobs:
         .\wix\candle.exe -nologo -dVersion=${{ github.run_number }} Wix/Product.wxs -out Product.wixobj
         .\wix\light.exe -nologo -ext WixUIExtension -out Output/LactaledInventory.msi Product.wixobj
 
-    - name: Subir artefactos
-      uses: actions/upload-artifact@v3
+    - name: Subir artefactos (versión actualizada)
+      uses: actions/upload-artifact@v4
       with:
         name: LactaledInventoryInstaller
         path: Output/
