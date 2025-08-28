@@ -148,3 +148,42 @@ $((Get-CimInstance Win32_Product -ErrorAction SilentlyContinue | Select-Object -
         Write-Host $errorMsg
     }
 }
+# Función para enviar datos a la aplicación web
+function Send-InventoryToWeb {
+    param(
+        [string]$InventoryFilePath,
+        [string]$WebAppUrl = "http://10.59.20.144:5000"  # Cambia por tu URL
+    )
+    
+    try {
+        # Leer el contenido del inventario
+        $inventoryContent = Get-Content -Path $InventoryFilePath -Raw -Encoding UTF8
+        
+        # Convertir a JSON para enviar
+        $inventoryData = @{
+            computer_name = $env:COMPUTERNAME
+            inventory_date = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+            inventory_content = $inventoryContent
+            file_path = $InventoryFilePath
+        } | ConvertTo-Json
+        
+        # Enviar a la aplicación web
+        $response = Invoke-RestMethod -Uri "$WebAppUrl/api/inventory" `
+            -Method Post `
+            -Body $inventoryData `
+            -ContentType "application/json" `
+            -ErrorAction Stop
+        
+        Write-Log "Inventario enviado exitosamente a la aplicación web"
+        return $true
+        
+    } catch {
+        Write-Log "Error enviando inventario a la web: $($_.Exception.Message)" "ERROR"
+        return $false
+    }
+}
+
+# Llamar a la función después de generar el inventario (al final del try)
+if (Test-Path $rutaCompleta) {
+    Send-InventoryToWeb -InventoryFilePath $rutaCompleta
+}
