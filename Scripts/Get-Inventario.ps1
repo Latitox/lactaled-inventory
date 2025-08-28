@@ -1,6 +1,6 @@
 # Configuración inicial
 $rutaInventario = "C:\ProgramData\Lactaled\Inventario\"
-$nombreArchivo = "inventario_$($env:COMPUTERNAME)_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"
+$nombreArchivo = "inventario_$($env:COMPUTERNAME).txt"
 $rutaCompleta = Join-Path -Path $rutaInventario -ChildPath $nombreArchivo
 $logFile = Join-Path -Path $rutaInventario -ChildPath "inventario_log.txt"
 
@@ -20,24 +20,30 @@ try {
     Write-Log "Iniciando proceso de inventario"
     
     # 1. Información básica del equipo
-    $serialNumber = (Get-CimInstance Win32_BIOS -ErrorAction SilentlyContinue).SerialNumber ?? "No disponible"
-    $modelo = (Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue).Model ?? "No disponible"
-    $sistemaOperativo = (Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue).Caption ?? "No disponible"
-    $fabricante = (Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue).Manufacturer ?? "No disponible"
-    $dominio = (Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue).Domain ?? "No disponible"
+    $biosInfo = Get-CimInstance Win32_BIOS -ErrorAction SilentlyContinue
+    $serialNumber = if ($biosInfo -and $biosInfo.SerialNumber) { $biosInfo.SerialNumber } else { "No disponible" }
+    
+    $systemInfo = Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue
+    $modelo = if ($systemInfo -and $systemInfo.Model) { $systemInfo.Model } else { "No disponible" }
+    $fabricante = if ($systemInfo -and $systemInfo.Manufacturer) { $systemInfo.Manufacturer } else { "No disponible" }
+    $dominio = if ($systemInfo -and $systemInfo.Domain) { $systemInfo.Domain } else { "No disponible" }
+    
+    $osInfo = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
+    $sistemaOperativo = if ($osInfo -and $osInfo.Caption) { $osInfo.Caption } else { "No disponible" }
 
     # 2. BIOS (Versión)
-    $biosVersion = (Get-CimInstance Win32_BIOS -ErrorAction SilentlyContinue).SMBIOSBIOSVersion ?? "No disponible"
+    $biosVersion = if ($biosInfo -and $biosInfo.SMBIOSBIOSVersion) { $biosInfo.SMBIOSBIOSVersion } else { "No disponible" }
 
     # 3. Hardware (RAM, CPU, Discos, Tarjeta de video)
-    $systemInfo = Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue
-    $memoriaGB = if ($systemInfo.TotalPhysicalMemory) { 
+    $memoriaGB = if ($systemInfo -and $systemInfo.TotalPhysicalMemory) { 
         [math]::Round($systemInfo.TotalPhysicalMemory / 1GB, 2) 
     } else { 
         "No disponible" 
     }
 
-    $procesador = (Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1).Name ?? "No disponible"
+    $procesadorInfo = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
+    $procesador = if ($procesadorInfo -and $procesadorInfo.Name) { $procesadorInfo.Name } else { "No disponible" }
+    
     $discos = Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | Select-Object Model, Size, DeviceID
 
     # Tarjeta de video
@@ -48,7 +54,7 @@ try {
     # 4. Slots de RAM (Total y disponibles)
     $ramSlots = Get-CimInstance Win32_PhysicalMemoryArray -ErrorAction SilentlyContinue | Select-Object -First 1
     $ramModules = Get-CimInstance Win32_PhysicalMemory -ErrorAction SilentlyContinue
-    $totalSlots = if ($ramSlots) { $ramSlots.MemoryDevices } else { "No disponible" }
+    $totalSlots = if ($ramSlots -and $ramSlots.MemoryDevices) { $ramSlots.MemoryDevices } else { "No disponible" }
     $slotsUsados = if ($ramModules) { $ramModules.Count } else { "No disponible" }
 
     # 5. Red (MACs principales: Ethernet, Wi-Fi, Bluetooth)
@@ -57,30 +63,41 @@ try {
         Select-Object -First 3 | 
         ForEach-Object { "[$($_.Description)] MAC: $($_.MACAddress)" }
 
-    # 6. Fecha del último inicio de sesión del usuario actual
+    # 6. Información de usuario - Versión simple y confiable
+    $currentUser = "No disponible"
     $userLastLogin = "No disponible"
+
     try {
-        $userEvents = Get-WinEvent -FilterHashtable @{
-            LogName = 'Security'
-            ID = 4624
-            Data = $env:USERNAME
-        } -MaxEvents 1 -ErrorAction Stop
-        
-        if ($userEvents) {
-            $userLastLogin = $userEvents[0].TimeCreated.ToString("yyyy-MM-dd HH:mm:ss")
+        # Método 1: Usuario activo de WMI (funciona cuando se ejecuta como SYSTEM)
+        $activeUser = (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop).UserName
+        if ($activeUser) {
+            $currentUser = $activeUser
+        } else {
+            # Método 2: Usuario de la sesión de consola
+            $consoleUser = query session 2>$null | Where-Object { $_ -match '>console\s+Active' }
+            if ($consoleUser -and $consoleUser -match '(\w+\\\w+)\s+') {
+                $currentUser = $matches[1]
+            } else {
+                # Método 3: Usuario del sistema
+                $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name + " (Sistema)"
+            }
         }
-    } catch {
+        
+        # Obtener último inicio de sesión
         try {
-            # Método alternativo para sistemas más antiguos
-            $userProfile = Get-CimInstance Win32_UserProfile -ErrorAction Stop | 
-                Where-Object { $_.LocalPath -like "*$($env:USERNAME)" } |
-                Select-Object -First 1
-            if ($userProfile -and $userProfile.LastUseTime) {
-                $userLastLogin = $userProfile.LastUseTime.ToString("yyyy-MM-dd HH:mm:ss")
+            # Método registry
+            $regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI"
+            $lastUser = Get-ItemProperty -Path $regPath -Name "LastLoggedOnUser" -ErrorAction SilentlyContinue
+            if ($lastUser -and $lastUser.LastLoggedOnUser) {
+                $userLastLogin = $lastUser.LastLoggedOnUser
             }
         } catch {
-            Write-Log "No se pudo obtener fecha de último inicio de sesión: $($_.Exception.Message)"
+            Write-Log "No se pudo obtener último usuario desde registry: $($_.Exception.Message)" "WARNING"
         }
+        
+    } catch {
+        $currentUser = "Error obteniendo usuario"
+        Write-Log "Error obteniendo información de usuario: $($_.Exception.Message)" "ERROR"
     }
 
     # Generar contenido del archivo TXT
@@ -88,9 +105,9 @@ try {
 === INVENTARIO LACTALED ===
 Última sincronización: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 Equipo: $($env:COMPUTERNAME)
-Usuario: $($env:USERNAME)
+Usuario activo: $currentUser
 Dominio: $dominio
-Último inicio de sesión del usuario: $userLastLogin
+Último inicio de sesión: $userLastLogin
 
 --- Información General ---
 Fabricante: $fabricante
@@ -119,15 +136,15 @@ $($macAddresses -join "`n")
 $((Get-CimInstance Win32_Product -ErrorAction SilentlyContinue | Select-Object -First 20 Name, Version | Format-Table -AutoSize | Out-String).Trim())
 "@
 
-    # Guardar en archivo TXT
+    # Guardar en archivo TXT (sobrescribe el existente)
     $contenido | Out-File -FilePath $rutaCompleta -Encoding UTF8 -Force
     Write-Log "Inventario guardado en: $rutaCompleta"
 
-    # Limpiar archivos antiguos (más de 7 días)
-    Get-ChildItem -Path $rutaInventario -Filter "inventario_*.txt" | 
-        Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } | 
-        Remove-Item -Force -ErrorAction SilentlyContinue
-
 } catch {
-    Write-Log "Error durante la ejecución: $($_.Exception.Message)"
+    $errorMsg = "Error durante la ejecución: $($_.Exception.Message)"
+    try {
+        "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - $errorMsg" | Out-File -FilePath $logFile -Append -Encoding UTF8 -ErrorAction SilentlyContinue
+    } catch {
+        Write-Host $errorMsg
+    }
 }
