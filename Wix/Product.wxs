@@ -23,14 +23,21 @@
             <Directory Id="ProgramFilesFolder">
                 <Directory Id="INSTALLFOLDER" Name="LactaledInventoryService"/>
             </Directory>
+            <Directory Id="CommonAppDataFolder">
+                <Directory Id="ProgramDataLactaled" Name="Lactaled">
+                    <Directory Id="ProgramDataInventario" Name="Inventario"/>
+                    <Directory Id="ProgramDataLogs" Name="Logs"/>
+                </Directory>
+            </Directory>
         </Directory>
         
         <!-- Componentes principales -->
         <Feature Id="MainFeature" Title="Servicio Inventario" Level="1">
             <ComponentGroupRef Id="ScriptComponents"/>
+            <ComponentGroupRef Id="DataFolderComponents"/>
         </Feature>
         
-        <!-- Scripts - TODOS los archivos necesarios -->
+        <!-- Scripts -->
         <ComponentGroup Id="ScriptComponents" Directory="INSTALLFOLDER">
             <!-- Script principal de inventario -->
             <Component Id="GetInventarioScript" Guid="37F3F007-4870-4B5C-A2B0-DD3D2337380F">
@@ -59,23 +66,32 @@
                       Source="Scripts\Lactaled-Tray.ps1" 
                       KeyPath="yes"/>
             </Component>
-            
-            <!-- Crear carpetas necesarias -->
-            <Component Id="CreateDataDirs" Guid="7873F007-4870-4B5C-A2B0-DD3D2337384D">
-                <CreateFolder Directory="C:\ProgramData\Lactaled\Inventario"/>
-                <CreateFolder Directory="C:\ProgramData\Lactaled\Logs"/>
+        </ComponentGroup>
+        
+        <!-- Componentes para carpetas de datos -->
+        <ComponentGroup Id="DataFolderComponents">
+            <!-- Carpeta Inventario -->
+            <Component Id="InventarioFolder" Guid="7873F007-4870-4B5C-A2B0-DD3D2337384D" Directory="ProgramDataInventario">
+                <CreateFolder/>
                 <RegistryValue Root="HKCU" Key="SOFTWARE\Lactaled\InventoryService" 
-                             Name="InstallPath" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes"/>
+                             Name="InventarioPath" Type="string" Value="[ProgramDataInventario]" KeyPath="yes"/>
+            </Component>
+            
+            <!-- Carpeta Logs -->
+            <Component Id="LogsFolder" Guid="8873F007-4870-4B5C-A2B0-DD3D2337385E" Directory="ProgramDataLogs">
+                <CreateFolder/>
+                <RegistryValue Root="HKCU" Key="SOFTWARE\Lactaled\InventoryService" 
+                             Name="LogsPath" Type="string" Value="[ProgramDataLogs]" KeyPath="yes"/>
             </Component>
         </ComponentGroup>
         
-        <!-- CustomAction para ejecutar el instalador -->
+        <!-- CustomAction CORREGIDA -->
         <CustomAction Id="RunInstallScript" 
                       Execute="deferred" 
                       Impersonate="no" 
                       Return="check" 
-                      File="powershell.exe"
-                      ExeCommand="-ExecutionPolicy Bypass -File &quot;[INSTALLFOLDER]Install-Lactaled.ps1&quot; -Silent"/>
+                      FileKey="InstallLactaledPS1"
+                      ExeCommand="-ExecutionPolicy Bypass -File &quot;[#InstallLactaledPS1]&quot; -Silent"/>
         
         <InstallExecuteSequence>
             <Custom Action="RunInstallScript" After="InstallFiles">NOT Installed</Custom>
