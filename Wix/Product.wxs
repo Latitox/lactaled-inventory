@@ -43,8 +43,12 @@
         <ComponentGroup Id="ScriptComponents" Directory="INSTALLFOLDER">
             <Component Id="MainScript" Guid="37F3F007-4870-4B5C-A2B0-DD3D2337380F">
                 <File Id="GetInventarioPS1" 
-                      Source="Scripts\Get-Inventario.ps1" 
-                      KeyPath="yes"/>
+                        Source="Scripts\Get-Inventario.ps1" 
+                        KeyPath="yes"/>
+
+                <File Id="InstallLactaledPS1" 
+                        Source="Scripts\Install-Lactaled.ps1" 
+                        KeyPath="yes"/>
             </Component>
             <Component Id="DeployScript" Guid="4873F007-4870-4B5C-A2B0-DD3D2337381A">
                 <File Id="DeployInventarioPS1" 
