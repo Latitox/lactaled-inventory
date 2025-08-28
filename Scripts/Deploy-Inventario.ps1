@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 
 # Configuración
 $TaskName = "LactaledInventory"
-$InstallPath = "C:\Program Files\Lactaled\InventoryService\"
+$InstallPath = "C:\Program Files\LactaledInventoryService\"
 $LogPath = "C:\ProgramData\Lactaled\Logs\"
 
 function Write-Log {

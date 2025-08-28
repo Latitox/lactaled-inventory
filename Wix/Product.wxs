@@ -18,57 +18,63 @@
         <MajorUpgrade DowngradeErrorMessage="Una versión más nueva ya está instalada." />
         <MediaTemplate EmbedCab="yes" />
         
-        <!-- Directorios necesarios -->
+        <!-- Directorios -->
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="ProgramFilesFolder">
                 <Directory Id="INSTALLFOLDER" Name="LactaledInventoryService"/>
-            </Directory>
-            <Directory Id="CommonAppDataFolder">
-                <Directory Id="LactaledData" Name="Lactaled">
-                    <Directory Id="InventarioDir" Name="Inventario"/>
-                    <Directory Id="LogsDir" Name="Logs"/>
-                </Directory>
             </Directory>
         </Directory>
         
         <!-- Componentes principales -->
         <Feature Id="MainFeature" Title="Servicio Inventario" Level="1">
             <ComponentGroupRef Id="ScriptComponents"/>
-            <ComponentGroupRef Id="FolderComponents"/>
         </Feature>
         
-        <!-- Scripts -->
+        <!-- Scripts - TODOS los archivos necesarios -->
         <ComponentGroup Id="ScriptComponents" Directory="INSTALLFOLDER">
-            <Component Id="MainScript" Guid="37F3F007-4870-4B5C-A2B0-DD3D2337380F">
+            <!-- Script principal de inventario -->
+            <Component Id="GetInventarioScript" Guid="37F3F007-4870-4B5C-A2B0-DD3D2337380F">
                 <File Id="GetInventarioPS1" 
                       Source="Scripts\Get-Inventario.ps1" 
                       KeyPath="yes"/>
             </Component>
-            <Component Id="InstallScript" Guid="4873F007-4870-4B5C-A2B0-DD3D2337381A">
+            
+            <!-- Script de instalación principal -->
+            <Component Id="InstallLactaledScript" Guid="4873F007-4870-4B5C-A2B0-DD3D2337381A">
                 <File Id="InstallLactaledPS1" 
                       Source="Scripts\Install-Lactaled.ps1" 
                       KeyPath="yes"/>
             </Component>
+            
+            <!-- Script de despliegue alternativo -->
+            <Component Id="DeployInventarioScript" Guid="5873F007-4870-4B5C-A2B0-DD3D2337382B">
+                <File Id="DeployInventarioPS1" 
+                      Source="Scripts\Deploy-Inventario.ps1" 
+                      KeyPath="yes"/>
+            </Component>
+            
+            <!-- Icono de bandeja -->
+            <Component Id="TrayIconScript" Guid="6873F007-4870-4B5C-A2B0-DD3D2337383C">
+                <File Id="LactaledTrayPS1" 
+                      Source="Scripts\Lactaled-Tray.ps1" 
+                      KeyPath="yes"/>
+            </Component>
+            
+            <!-- Crear carpetas necesarias -->
+            <Component Id="CreateDataDirs" Guid="7873F007-4870-4B5C-A2B0-DD3D2337384D">
+                <CreateFolder Directory="C:\ProgramData\Lactaled\Inventario"/>
+                <CreateFolder Directory="C:\ProgramData\Lactaled\Logs"/>
+                <RegistryValue Root="HKCU" Key="SOFTWARE\Lactaled\InventoryService" 
+                             Name="InstallPath" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes"/>
+            </Component>
         </ComponentGroup>
         
-        <!-- Carpetas necesarias -->
-        <ComponentGroup Id="FolderComponents">
-            <Component Id="InventarioFolder" Guid="5873F007-4870-4B5C-A2B0-DD3D2337382B" Directory="InventarioDir">
-                <CreateFolder/>
-                <RegistryValue Root="HKCU" Key="SOFTWARE\Lactaled\Inventario" Type="string" Value="" KeyPath="yes"/>
-            </Component>
-            <Component Id="LogsFolder" Guid="6873F007-4870-4B5C-A2B0-DD3D2337383C" Directory="LogsDir">
-                <CreateFolder/>
-                <RegistryValue Root="HKCU" Key="SOFTWARE\Lactaled\Logs" Type="string" Value="" KeyPath="yes"/>
-            </Component>
-        </ComponentGroup>
-        
-        <!-- Acción personalizada para ejecutar PowerShell -->
+        <!-- CustomAction para ejecutar el instalador -->
         <CustomAction Id="RunInstallScript" 
                       Execute="deferred" 
                       Impersonate="no" 
                       Return="check" 
-                      FileKey="InstallLactaledPS1"
+                      File="powershell.exe"
                       ExeCommand="-ExecutionPolicy Bypass -File &quot;[INSTALLFOLDER]Install-Lactaled.ps1&quot; -Silent"/>
         
         <InstallExecuteSequence>

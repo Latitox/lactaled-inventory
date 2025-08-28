@@ -2,7 +2,7 @@
 param([switch]$Uninstall, [switch]$Silent)
 
 $TaskName = "LactaledInventory"
-$InstallPath = "C:\Program Files\Lactaled\InventoryService\"
+$InstallPath = "C:\Program Files\LactaledInventoryService\"
 $InventoryPath = "C:\ProgramData\Lactaled\Inventario\"
 $LogPath = "C:\ProgramData\Lactaled\Logs\"
 
